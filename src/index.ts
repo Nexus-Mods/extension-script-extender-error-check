@@ -1,13 +1,15 @@
 import { app as appIn, remote } from 'electron';
 import * as path from 'path';
-import { actions, fs, log, selectors, util, types, Icon, tooltip } from 'vortex-api';
-import React = require('react');
+import * as React from 'react';
+import { actions, fs, Icon, log, selectors, tooltip, types, util } from 'vortex-api';
 
 import BooleanFilter from './BooleanFilter';
 
 const app = remote !== undefined ? remote.app : appIn;
 
-// Based on information from https://github.com/ModOrganizer2/modorganizer-script_extender_plugin_checker by Silarn.
+// Based on information from
+// https://github.com/ModOrganizer2/modorganizer-script_extender_plugin_checker
+// by Silarn.
 const compatibleGames = {
   skyrim: [
     path.join(app.getPath('documents'), 'My Games', 'Skyrim', 'SKSE', 'skse.log'),
@@ -83,16 +85,14 @@ async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
     try {
       const logDate = Math.round((await fs.statAsync(filePath)).mtime.getTime() / 1000);
 
-      //Was this log generated since the user tried to start the game?
+      // Was this log generated since the user tried to start the game?
       if (logDate > launchTime) {
         const logFile = await fs.readFileAsync(filePath, { encoding: 'utf8' });
         errors.push(...parseSELog(logFile));
-      }
-      else {
+      } else {
         log('debug', 'Scripted extender log file was not updated this session.');
       }
-    }
-    catch (err) {
+    } catch (err) {
       log(err.code === 'ENOENT' ? 'info' : 'error',
         'Failed to check for script extender errors', err.message);
     }
@@ -116,11 +116,11 @@ async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
     }, {});
 
     const renderError = input => {
-      let modName = (input.modId !== undefined) && (mods[input.modId] !== undefined)
+      const modName = (input.modId !== undefined) && (mods[input.modId] !== undefined)
         ? util.renderModName(mods[input.modId])
         : api.translate('<manually installed>');
       return `- "${input.dllName}" (${modName}): ${api.translate(input.message)}`;
-    }
+    };
 
     api.sendNotification({
       id: 'script-extender-errors',
@@ -132,18 +132,21 @@ async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
           title: 'More', action: () =>
             api.showDialog('info', 'Script extender plugin errors', {
               text: api.translate('One or more script extender plugins failed to load. '
-                + 'This normally happens when you try to load mods which are not compatible with the installed version of the script extender.\n'
-                + 'To fix this problem you can check for an update on the mod page of the failed plugin or disable the mod until it is updated.\n\n'
+                + 'This normally happens when you try to load mods which are not compatible with '
+                + 'the installed version of the script extender.\n'
+                + 'To fix this problem you can check for an update on the mod page of the failed '
+                + 'plugin or disable the mod until it is updated.\n\n'
                 + 'Error(s) reported:'
-                + '\n') + errors.map(renderError).join('\n')
-            }, [{ label: 'Close' }])
+                + '\n') + errors.map(renderError).join('\n'),
+            }, [{ label: 'Close' }]),
         },
         {
           title: 'Dismiss', action: dismiss => {
-            api.store.dispatch(actions.setAttributeVisible('mods', 'script-extender-error-check', false));
+            api.store.dispatch(
+              actions.setAttributeVisible('mods', 'script-extender-error-check', false));
             dismiss();
-          }
-        }
+          },
+        },
       ],
     });
   }
@@ -151,16 +154,16 @@ async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
 }
 
 const loadStatusMessages = [
-    "reported as incompatible during query",
-    "reported as incompatible during load",
-    "disabled, fatal error occured while loading plugin",
-    "disabled, no name specified",
-    "disabled, fatal error occurred while checking plugin compatibility",
-    "disabled, fatal error occurred while querying plugin"
-]
+    'reported as incompatible during query',
+    'reported as incompatible during load',
+    'disabled, fatal error occured while loading plugin',
+    'disabled, no name specified',
+    'disabled, fatal error occurred while checking plugin compatibility',
+    'disabled, fatal error occurred while querying plugin',
+];
 
 function messageFromCode(input: number): string {
-  switch(input) {
+  switch (input) {
     case 126: return 'dependent dll not found (code 126)';
     case 193: return 'not a valid dll (code 193)';
     default: return `error code ${input}`;
@@ -172,13 +175,14 @@ function parseSELog(input: string) {
   const lines: string[] = input.split(/\r*\n/);
 
   lines.forEach(line => {
-    const message = loadStatusMessages.find(message => line.indexOf(message) !== -1);
+    const message = loadStatusMessages.find(iter => line.indexOf(iter) !== -1);
     if (message !== undefined) {
       // matched lines look like this:
+      // tslint:disable-next-line:max-line-length
       // plugin E:\SteamLibrary\steamapps\common\Skyrim Special Edition\Data\SKSE\Plugins\\Fuz Ro D'oh.dll (00000001 Fuz Ro D'oh 010513CC) reported as incompatible during query
       // we want to extract the file name
 
-      const pluginPath = line.replace(/.*plugin (.:.*) \(.*/, '$1')
+      const pluginPath = line.replace(/.*plugin (.:.*) \(.*/, '$1');
       if (pluginPath === line) {
         log('warn', 'failed to parse script extender output', line);
         return;
@@ -223,23 +227,23 @@ function main(context: types.IExtensionContext) {
 
     let launchTime = 0;
 
-    context.api.events.on('gamemode-activated', () => {
-      const hasErrors = checkForErrors(context.api, launchTime);
-      context.api.store.dispatch(actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
+    context.api.events.on('gamemode-activated', async () => {
+      const hasErrors = await checkForErrors(context.api, launchTime);
+      context.api.store.dispatch(
+        actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
     });
 
-
-    context.api.onStateChange(['session', 'base', 'toolsRunning'], (previous, current) => {
+    context.api.onStateChange(['session', 'base', 'toolsRunning'], async (previous, current) => {
       if ((Object.keys(previous).length === 0) && (Object.keys(current).length > 0)) {
         launchTime = Math.round(Date.now() / 1000);
       }
       if ((Object.keys(previous).length > 0) && (Object.keys(current).length === 0)) {
-        const hasErrors = checkForErrors(context.api, launchTime);
-        context.api.store.dispatch(actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
+        const hasErrors = await checkForErrors(context.api, launchTime);
+        context.api.store.dispatch(
+          actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
       }
     });
   });
-};
-
+}
 
 export default main;
