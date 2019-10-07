@@ -1,7 +1,7 @@
 import { app as appIn, remote } from 'electron';
 import * as path from 'path';
 import * as React from 'react';
-import { actions, fs, Icon, log, selectors, tooltip, types, util } from 'vortex-api';
+import { actions, fs, log, selectors, tooltip, types, util } from 'vortex-api';
 
 import BooleanFilter from './BooleanFilter';
 
@@ -209,6 +209,11 @@ function main(context: types.IExtensionContext) {
     id: 'script-extender-error-check',
     name: 'Extender Error',
     placement: 'table',
+    condition: () => {
+      const state: types.IState = context.api.store.getState();
+      const gameMode = selectors.activeGameId(state);
+      return compatibleGames[gameMode] !== undefined;
+    },
     customRenderer: (mod) => {
       const err = errorState[mod.id];
       return (err === undefined)
