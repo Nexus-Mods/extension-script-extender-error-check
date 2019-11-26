@@ -41,6 +41,7 @@ const compatibleGames = {
 };
 
 let errorState: { [modId: string]: IErrorLine } = util.makeReactive({});
+let errorStateChange: () => void;
 
 interface IErrorLine {
   dllName: string;
@@ -114,6 +115,9 @@ async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
       prev[err.modId] = err;
       return prev;
     }, {});
+    if (errorStateChange !== undefined) {
+      errorStateChange();
+    }
 
     const renderError = input => {
       const modName = (input.modId !== undefined) && (mods[input.modId] !== undefined)
@@ -225,6 +229,7 @@ function main(context: types.IExtensionContext) {
     filter: new BooleanFilter(),
     edit: {},
     isDefaultVisible: false,
+    externalData: (onChange: () => void) => errorStateChange = onChange,
   });
 
   context.once(() => {
