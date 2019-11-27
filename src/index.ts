@@ -64,7 +64,7 @@ function getModId(manifest: any, modLookup: { [modPath: string]: string }, dllNa
   return undefined;
 }
 
-async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
+async function checkForErrors(api: types.IExtensionApi) {
   const state: types.IState = api.store.getState();
   const gameDiscovery = selectors.currentGameDiscovery(state);
   if ((gameDiscovery === undefined) || (gameDiscovery.path === undefined)) {
@@ -145,7 +145,9 @@ async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
                 + 'plugin or disable the mod until it is updated.\n\n'
                 + 'Error(s) reported:'
                 + '\n') + errors.map(renderError).join('\n'),
-            }, [{ label: 'Close' }]),
+            }, [{ label: 'Ignore', action: () => {
+              launchTime = Math.round(Date.now() / 1000);
+            } },{ label: 'Close' }]),
         },
         {
           title: 'Dismiss', action: dismiss => {
@@ -209,6 +211,8 @@ function parseSELog(input: string) {
   return errorArray;
 }
 
+let launchTime = 0;
+
 function main(context: types.IExtensionContext) {
   context.requireVersion('>=1.0.4');
 
@@ -238,10 +242,10 @@ function main(context: types.IExtensionContext) {
   context.once(() => {
     context.api.setStylesheet('script-extender-error-check', path.join(__dirname, 'style.scss'));
 
-    let launchTime = 0;
+    //let launchTime = 0;
 
     context.api.events.on('gamemode-activated', async () => {
-      const hasErrors = await checkForErrors(context.api, launchTime);
+      const hasErrors = await checkForErrors(context.api);
       context.api.store.dispatch(
         actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
     });
@@ -251,7 +255,7 @@ function main(context: types.IExtensionContext) {
         launchTime = Math.round(Date.now() / 1000);
       }
       if ((Object.keys(previous).length > 0) && (Object.keys(current).length === 0)) {
-        const hasErrors = await checkForErrors(context.api, launchTime);
+        const hasErrors = await checkForErrors(context.api);
         context.api.store.dispatch(
           actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
       }
