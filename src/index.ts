@@ -67,6 +67,9 @@ function getModId(manifest: any, modLookup: { [modPath: string]: string }, dllNa
 async function checkForErrors(api: types.IExtensionApi, launchTime: number) {
   const state: types.IState = api.store.getState();
   const gameDiscovery = selectors.currentGameDiscovery(state);
+  if ((gameDiscovery === undefined) || (gameDiscovery.path === undefined)) {
+    return false;
+  }
   const gamePath = gameDiscovery.path;
   const gameMode = selectors.activeGameId(state);
 
