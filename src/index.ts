@@ -146,6 +146,8 @@ async function checkForErrors(api: types.IExtensionApi) {
                 + 'Error(s) reported:'
                 + '\n') + errors.map(renderError).join('\n'),
             }, [{ label: 'Ignore', action: () => {
+              //Ignoring will set the launch time to now and dismiss the active notifications.
+              api.dismissNotification('script-extender-errors');
               launchTime = Math.round(Date.now() / 1000);
             } },{ label: 'Close' }]),
         },
@@ -245,6 +247,8 @@ function main(context: types.IExtensionContext) {
     //let launchTime = 0;
 
     context.api.events.on('gamemode-activated', async () => {
+      //Clear any outstanding notifications (they'll come back if we switch back to this game)
+      context.api.dismissNotification('script-extender-errors');
       const hasErrors = await checkForErrors(context.api);
       context.api.store.dispatch(
         actions.setAttributeVisible('mods', 'script-extender-error-check', hasErrors));
