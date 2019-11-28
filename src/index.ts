@@ -138,7 +138,8 @@ async function checkForErrors(api: types.IExtensionApi) {
         {
           title: 'More', action: () =>
             api.showDialog('info', 'Script extender plugin errors', {
-              text: api.translate('One or more script extender plugins failed to load. '
+              text: api.translate('Last time you ran the game, one or more script extender '
+                + 'plugins failed to load. '
                 + 'This normally happens when you try to load mods which are not compatible with '
                 + 'the installed version of the script extender.\n'
                 + 'To fix this problem you can check for an update on the mod page of the failed '
@@ -146,10 +147,10 @@ async function checkForErrors(api: types.IExtensionApi) {
                 + 'Error(s) reported:'
                 + '\n') + errors.map(renderError).join('\n'),
             }, [{ label: 'Ignore', action: () => {
-              //Ignoring will set the launch time to now and dismiss the active notifications.
+              // Ignoring will set the launch time to now and dismiss the active notifications.
               api.dismissNotification('script-extender-errors');
               launchTime = Math.round(Date.now() / 1000);
-            } },{ label: 'Close' }]),
+            } }, { label: 'Close' }]),
         },
         {
           title: 'Dismiss', action: dismiss => {
@@ -244,10 +245,10 @@ function main(context: types.IExtensionContext) {
   context.once(() => {
     context.api.setStylesheet('script-extender-error-check', path.join(__dirname, 'style.scss'));
 
-    //let launchTime = 0;
+    // let launchTime = 0;
 
     context.api.events.on('gamemode-activated', async () => {
-      //Clear any outstanding notifications (they'll come back if we switch back to this game)
+      // Clear any outstanding notifications (they'll come back if we switch back to this game)
       context.api.dismissNotification('script-extender-errors');
       const hasErrors = await checkForErrors(context.api);
       context.api.store.dispatch(
