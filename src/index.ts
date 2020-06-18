@@ -168,7 +168,7 @@ async function checkForErrors(api: types.IExtensionApi) {
 const loadStatusMessages = [
     'reported as incompatible during query',
     'reported as incompatible during load',
-    'disabled, fatal error occured while loading plugin',
+    'disabled, fatal error occurred while loading plugin',
     'disabled, no name specified',
     'disabled, fatal error occurred while checking plugin compatibility',
     'disabled, fatal error occurred while querying plugin',
