@@ -103,7 +103,18 @@ async function checkForErrors(api: types.IExtensionApi) {
   }));
 
   if (errors.length > 0) {
-    const manifest: any = await (util as any).getManifest(api);
+    try {
+      const manifest: any = await (util as any).getManifest(api);
+    } catch (err) {
+      // We found script extender errors but we can't seem to
+      //  retrieve the manifest file - I suppose that's plausible
+      //  if the file has been removed. We log as info or error
+      //  depending on whether it's our responsibility to fix it.
+      const isNonActionable = ['ENOENT', 'EIO', 'EPERM'].indexOf(err.code) !== -1;
+      log(isNonActionable ? 'info' : 'error',
+        'Failed to retrieve manifest information', err.message);
+      return false;
+    }
     const mods = state.persistent.mods[gameMode] || {};
     const modLookup: { [modPath: string]: string } = Object.keys(mods).reduce((prev, modId) => {
       prev[mods[modId].installationPath] = modId;
