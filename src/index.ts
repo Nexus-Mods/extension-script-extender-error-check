@@ -103,8 +103,9 @@ async function checkForErrors(api: types.IExtensionApi) {
   }));
 
   if (errors.length > 0) {
+    let manifest;
     try {
-      const manifest: any = await (util as any).getManifest(api);
+      manifest = await (util as any).getManifest(api);
     } catch (err) {
       // We found script extender errors but we can't seem to
       //  retrieve the manifest file - I suppose that's plausible
