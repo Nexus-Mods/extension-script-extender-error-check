@@ -1,6 +1,7 @@
 import { app as appIn, remote } from 'electron';
 import * as path from 'path';
 import * as React from 'react';
+import * as url from 'url';
 import { actions, fs, log, selectors, tooltip, types, util } from 'vortex-api';
 
 import BooleanFilter from './BooleanFilter';
@@ -81,20 +82,26 @@ async function checkForErrors(api: types.IExtensionApi) {
   }
 
   const errors: IErrorLine[] = [];
+  let errLogFile: string;
+  let errLogTime: number = 0;
 
   await Promise.all(logPaths.map(async (filePath) => {
     // Replace {GamePath} if it's not a full path.
     filePath = filePath.replace('{GamePath}', gamePath);
 
     try {
-      const logDate = Math.round((await fs.statAsync(filePath)).mtime.getTime() / 1000);
+      const logTime = (await fs.statAsync(filePath)).mtime.getTime();
 
       // Was this log generated since the user tried to start the game?
-      if (logDate > launchTime) {
+      if (Math.round(logTime / 1000) > launchTime) {
         const logFile = await fs.readFileAsync(filePath, { encoding: 'utf8' });
         errors.push(...parseSELog(logFile));
+        if ((errLogTime === undefined) || (logTime > errLogTime)) {
+          errLogTime = Math.max(errLogTime, logTime);
+          errLogFile = filePath;
+        }
       } else {
-        log('debug', 'Scripted extender log file was not updated this session.');
+        log('debug', 'Script extender log file was not updated this session.');
       }
     } catch (err) {
       log(err.code === 'ENOENT' ? 'info' : 'error',
@@ -105,7 +112,7 @@ async function checkForErrors(api: types.IExtensionApi) {
   if (errors.length > 0) {
     let manifest;
     try {
-      manifest = await (util as any).getManifest(api);
+      manifest = await util.getManifest(api);
     } catch (err) {
       // We found script extender errors but we can't seem to
       //  retrieve the manifest file - I suppose that's plausible
@@ -150,14 +157,24 @@ async function checkForErrors(api: types.IExtensionApi) {
         {
           title: 'More', action: () =>
             api.showDialog('info', 'Script extender plugin errors', {
-              text: api.translate('Last time you ran the game, one or more script extender '
-                + 'plugins failed to load. '
+              bbcode: api.translate('Last time you ran the game, one or more script extender '
+                + 'plugins failed to load.<br/>'
+                + 'This is according to [url={{logPathURI}}]{{logPath}}[/url] {{pathSep}} [url={{logURI}}]{{logName}}[/url] (dated {{logTime}}).<br/><br/>'
                 + 'This normally happens when you try to load mods which are not compatible with '
-                + 'the installed version of the script extender.\n'
+                + 'the installed version of the script extender.<br/>'
                 + 'To fix this problem you can check for an update on the mod page of the failed '
-                + 'plugin or disable the mod until it is updated.\n\n'
+                + 'plugin or disable the mod until it is updated.<br/><br/>'
                 + 'Error(s) reported:'
-                + '\n') + errors.map(renderError).join('\n'),
+                + '<br/>', {
+                  replace: {
+                    logPath: path.dirname(errLogFile),
+                    logName: path.basename(errLogFile),
+                    logPathURI: url.pathToFileURL(path.dirname(errLogFile)),
+                    logURI: url.pathToFileURL(errLogFile),
+                    pathSep: path.sep,
+                    logTime: (new Date(errLogTime)).toLocaleString(api.locale()),
+                  },
+                }) + errors.map(renderError).join('<br/>'),
             }, [{ label: 'Ignore', action: () => {
               // Ignoring will set the launch time to now and dismiss the active notifications.
               api.dismissNotification('script-extender-errors');
