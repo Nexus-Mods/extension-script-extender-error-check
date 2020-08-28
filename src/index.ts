@@ -175,6 +175,11 @@ async function checkForErrors(api: types.IExtensionApi) {
                     logTime: (new Date(errLogTime)).toLocaleString(api.locale()),
                   },
                 }) + errors.map(renderError).join('<br/>'),
+              options: {
+                bbcodeContext: {
+                  allowLocal: true,
+                },
+              }
             }, [{ label: 'Ignore', action: () => {
               // Ignoring will set the launch time to now and dismiss the active notifications.
               api.dismissNotification('script-extender-errors');
