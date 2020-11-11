@@ -8,6 +8,9 @@ import BooleanFilter from './BooleanFilter';
 
 const app = remote !== undefined ? remote.app : appIn;
 
+const ONE_MINUTE = 60 * 1000;
+const ONE_HOUR = 60 * ONE_MINUTE;
+
 // Based on information from
 // https://github.com/ModOrganizer2/modorganizer-script_extender_plugin_checker
 // by Silarn.
@@ -148,6 +151,8 @@ async function checkForErrors(api: types.IExtensionApi) {
       return `- "${input.dllName}" (${modName}): ${api.translate(input.message)}`;
     };
 
+    const logTime = new Date(errLogTime);
+
     api.sendNotification({
       id: 'script-extender-errors',
       type: 'warning',
@@ -159,7 +164,10 @@ async function checkForErrors(api: types.IExtensionApi) {
             api.showDialog('info', 'Script extender plugin errors', {
               bbcode: api.translate('Last time you ran the game, one or more script extender '
                 + 'plugins failed to load.<br/>'
-                + 'This is according to [url={{logPathURI}}]{{logPath}}[/url] {{pathSep}} [url={{logURI}}]{{logName}}[/url] (dated {{logTime}}).<br/><br/>'
+                + 'This is according to [url={{logPathURI}}]{{logPath}}[/url] {{pathSep}} [url={{logURI}}]{{logName}}[/url]<br/>'
+                + (((Date.now() - logTime.getTime()) > ONE_HOUR)
+                  ? '[color=red]Reported {{logTime}}.[/color]<br/><br/>'
+                  : 'Reported {{logTime}}.<br/><br/>')
                 + 'This normally happens when you try to load mods which are not compatible with '
                 + 'the installed version of the script extender.<br/>'
                 + 'To fix this problem you can check for an update on the mod page of the failed '
@@ -172,7 +180,7 @@ async function checkForErrors(api: types.IExtensionApi) {
                     logPathURI: url.pathToFileURL(path.dirname(errLogFile)),
                     logURI: url.pathToFileURL(errLogFile),
                     pathSep: path.sep,
-                    logTime: (new Date(errLogTime)).toLocaleString(api.locale()),
+                    logTime: util.relativeTime(logTime, api.translate),
                   },
                 }) + errors.map(renderError).join('<br/>'),
               options: {
@@ -228,7 +236,7 @@ function parseSELog(input: string) {
       // plugin E:\SteamLibrary\steamapps\common\Skyrim Special Edition\Data\SKSE\Plugins\\Fuz Ro D'oh.dll (00000001 Fuz Ro D'oh 010513CC) reported as incompatible during query
       // we want to extract the file name
 
-      const pluginPath = line.replace(/.*plugin (.:.*) \(.*/, '$1');
+      const pluginPath = line.replace(/.*plugin (.:.*\.dll) \(.*/, '$1');
       if (pluginPath === line) {
         log('warn', 'failed to parse script extender output', line);
         return;
