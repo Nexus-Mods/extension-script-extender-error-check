@@ -47,6 +47,12 @@ const compatibleGames = {
 let errorState: { [modId: string]: IErrorLine } = util.makeReactive({});
 let errorStateChange: () => void;
 
+interface IErrorLog {
+  errLogFile: string;
+  errLogTime: number;
+  errors: IErrorLine[];
+}
+
 interface IErrorLine {
   dllName: string;
   modId?: string;
@@ -84,11 +90,13 @@ async function checkForErrors(api: types.IExtensionApi) {
     return false;
   }
 
-  const errors: IErrorLine[] = [];
-  let errLogFile: string;
-  let errLogTime: number = 0;
+  const errorInstances: IErrorLog[] = [];
 
   await Promise.all(logPaths.map(async (filePath) => {
+    const errors: IErrorLine[] = [];
+    let errLogFile: string;
+    let errLogTime: number = 0;
+
     // Replace {GamePath} if it's not a full path.
     filePath = filePath.replace('{GamePath}', gamePath);
 
@@ -103,6 +111,10 @@ async function checkForErrors(api: types.IExtensionApi) {
           errLogTime = Math.max(errLogTime, logTime);
           errLogFile = filePath;
         }
+
+        if (errors.length > 0) {
+          errorInstances.push({ errLogFile, errLogTime, errors });
+        }
       } else {
         log('debug', 'Script extender log file was not updated this session.');
       }
@@ -112,7 +124,7 @@ async function checkForErrors(api: types.IExtensionApi) {
     }
   }));
 
-  if (errors.length > 0) {
+  if (errorInstances.length > 0) {
     let manifest;
     try {
       manifest = await util.getManifest(api);
@@ -126,6 +138,12 @@ async function checkForErrors(api: types.IExtensionApi) {
         'Failed to retrieve manifest information', err.message);
       return false;
     }
+
+    const errors = errorInstances.reduce((accum, iter) => {
+      accum = [].concat(accum, iter.errors);
+      return accum;
+    }, []);
+
     const mods = state.persistent.mods[gameMode] || {};
     const modLookup: { [modPath: string]: string } = Object.keys(mods).reduce((prev, modId) => {
       prev[mods[modId].installationPath] = modId;
@@ -151,8 +169,20 @@ async function checkForErrors(api: types.IExtensionApi) {
       return `- "${input.dllName}" (${modName}): ${api.translate(input.message)}`;
     };
 
-    const logTime = new Date(errLogTime);
-
+    const buildLogErrorString = (errLog: IErrorLog): string => {
+      const logTime = new Date(errLog.errLogTime);
+      return api.translate('[url={{logPathURI}}]{{logPath}}[/url] {{pathSep}} [url={{logURI}}]{{logName}}[/url]<br/>'
+          + (((Date.now() - logTime.getTime()) > ONE_HOUR)
+            ? '[color=red]Reported {{logTime}}.[/color]<br/><br/>'
+            : 'Reported {{logTime}}.<br/><br/>'), { replace: {
+              logPath: path.dirname(errLog.errLogFile),
+              logName: path.basename(errLog.errLogFile),
+              logPathURI: url.pathToFileURL(path.dirname(errLog.errLogFile)),
+              logURI: url.pathToFileURL(errLog.errLogFile),
+              pathSep: path.sep,
+              logTime: util.relativeTime(logTime, api.translate),
+            }});
+    };
     api.sendNotification({
       id: 'script-extender-errors',
       type: 'warning',
@@ -162,12 +192,9 @@ async function checkForErrors(api: types.IExtensionApi) {
         {
           title: 'More', action: () =>
             api.showDialog('info', 'Script extender plugin errors', {
-              bbcode: api.translate('Last time you ran the game, one or more script extender '
-                + 'plugins failed to load.<br/>'
-                + 'This is according to [url={{logPathURI}}]{{logPath}}[/url] {{pathSep}} [url={{logURI}}]{{logName}}[/url]<br/>'
-                + (((Date.now() - logTime.getTime()) > ONE_HOUR)
-                  ? '[color=red]Reported {{logTime}}.[/color]<br/><br/>'
-                  : 'Reported {{logTime}}.<br/><br/>')
+              bbcode: api.translate('Last time you ran the game or Creation kit, one or more script extender '
+                + 'plugins failed to load; this is according to:<br/>'
+                + '{{errorInformation}}'
                 + 'This normally happens when you try to load mods which are not compatible with '
                 + 'the installed version of the script extender.<br/>'
                 + 'To fix this problem you can check for an update on the mod page of the failed '
@@ -175,12 +202,7 @@ async function checkForErrors(api: types.IExtensionApi) {
                 + 'Error(s) reported:'
                 + '<br/>', {
                   replace: {
-                    logPath: path.dirname(errLogFile),
-                    logName: path.basename(errLogFile),
-                    logPathURI: url.pathToFileURL(path.dirname(errLogFile)),
-                    logURI: url.pathToFileURL(errLogFile),
-                    pathSep: path.sep,
-                    logTime: util.relativeTime(logTime, api.translate),
+                    errorInformation: errorInstances.map(buildLogErrorString),
                   },
                 }) + errors.map(renderError).join('<br/>'),
               options: {
@@ -204,7 +226,7 @@ async function checkForErrors(api: types.IExtensionApi) {
       ],
     });
   }
-  return errors.length > 0;
+  return errorInstances.length > 0;
 }
 
 const loadStatusMessages = [
