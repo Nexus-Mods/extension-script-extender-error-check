@@ -1,12 +1,9 @@
-import { app as appIn, remote } from 'electron';
 import * as path from 'path';
 import * as React from 'react';
 import * as url from 'url';
 import { actions, fs, log, selectors, tooltip, types, util } from 'vortex-api';
 
 import BooleanFilter from './BooleanFilter';
-
-const app = remote !== undefined ? remote.app : appIn;
 
 const ONE_MINUTE = 60 * 1000;
 const ONE_HOUR = 60 * ONE_MINUTE;
@@ -16,19 +13,19 @@ const ONE_HOUR = 60 * ONE_MINUTE;
 // by Silarn.
 const compatibleGames = {
   skyrim: [
-    path.join(app.getPath('documents'), 'My Games', 'Skyrim', 'SKSE', 'skse.log'),
+    path.join(util.getVortexPath('documents'), 'My Games', 'Skyrim', 'SKSE', 'skse.log'),
   ],
   skyrimse: [
-    path.join(app.getPath('documents'), 'My Games', 'Skyrim Special Edition', 'SKSE', 'skse64.log'),
+    path.join(util.getVortexPath('documents'), 'My Games', 'Skyrim Special Edition', 'SKSE', 'skse64.log'),
   ],
   skyrimvr: [
-    path.join(app.getPath('documents'), 'My Games', 'Skyrim VR', 'SKSE', 'sksevr.log'),
+    path.join(util.getVortexPath('documents'), 'My Games', 'Skyrim VR', 'SKSE', 'sksevr.log'),
   ],
   enderal: [
-    path.join(app.getPath('documents'), 'My Games', 'Skyrim', 'SKSE', 'skse.log'),
+    path.join(util.getVortexPath('documents'), 'My Games', 'Skyrim', 'SKSE', 'skse.log'),
   ],
   fallout4: [
-    path.join(app.getPath('documents'), 'My Games', 'Fallout 4', 'F4SE', 'f4se.log'),
+    path.join(util.getVortexPath('documents'), 'My Games', 'Fallout 4', 'F4SE', 'f4se.log'),
   ],
   oblivion: [
     path.join('{GamePath}', 'obse.log'),
